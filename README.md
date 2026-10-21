@@ -106,9 +106,9 @@ Cubes are 24 mm. Grasping requires alignment within 8 mm horizontally and 6 mm v
 
 There is no friction, contact-force solver, robot collision checking, stacking, motor torque model, or independent wrist rotation. This is an educational programming simulation, not a physical robot controller.
 
-## Authorship and references
+## References
 
-Created for Skipper Chen's engineering learning portfolio with Codex assistance. The initial implementation, UI, and tests were developed with AI assistance. Personal experiments, design changes, and explanations should be documented separately as the project develops.
+Created for Skipper Chen's engineering learning portfolio. Experiments, design changes, and learning notes will be documented as the project develops.
 
 The renderer and core robot model extend the [original simulator](https://github.com/niceskipperchen-coder/robotic-arm-simulator). [Robotics Toolbox for Python](https://github.com/petercorke/robotics-toolbox-python) and [Mithi's Hexapod](https://github.com/mithi/hexapod) informed the earlier project's presentation, not its source implementation.
 
