@@ -145,7 +145,7 @@ export function createRobotView(canvas) {
     const a=state.shoulder*Math.PI/180,b=(state.shoulder+state.elbow)*Math.PI/180;
     const endpoint=worldPoint(state.l1*Math.cos(a)+state.l2*Math.cos(b),state.l1*Math.sin(a)+state.l2*Math.sin(b),state.height);
     toolDot.position.set(endpoint.x,endpoint.y,endpoint.z);tcpLabel.position.set(endpoint.x+17,endpoint.y+45,endpoint.z);
-    targetMesh.visible=!!target;if(target){const p=worldPoint(target.x,target.y,state.height);targetMesh.position.set(p.x,p.y,p.z);targetMaterial.color.set(target.valid?0xe6bd70:0xee8877);}
+    targetMesh.visible=!!target;if(target){const p=worldPoint(target.x,target.y,2);targetMesh.position.set(p.x,p.y,p.z);targetMaterial.color.set(target.valid?0xe6bd70:0xee8877);}
     envelope.visible=options.envelope;
     trail.visible=options.trail;
     if(points.length!==trailCount || points.at(-1)!==trailEnd){

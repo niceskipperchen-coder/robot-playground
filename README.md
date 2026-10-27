@@ -21,6 +21,9 @@ Shared programs always open idle. Nothing is executed until the visitor presses 
 
 - CodeMirror editor with syntax coloring, line numbers, autocomplete, local drafts, and Ctrl/Cmd+Enter.
 - Deterministic 60 Hz simulation, sequential commands, pause/resume, single-command stepping, stop, and reset.
+- Playback at 1×, 2×, or 5× with the same fixed physics timestep.
+- Click the grid or a block to inspect XY coordinates; insert a move at safe travel height.
+- Optional synthesized motor, gripper, missed-grasp, and completion sounds; muted by default.
 - Execution highlighting, line-specific errors, and a live console.
 - Orbit, pan, and zoom around the robot; perspective, top, and side presets.
 - Three built-in challenges with tested solutions, live delivery progress, and per-block goal matching.

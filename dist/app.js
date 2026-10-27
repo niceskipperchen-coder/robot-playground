@@ -3,6 +3,10 @@ import {compile} from './program.js';
 import {Simulation,Runner} from './engine.js';
 import {challenges,validateChallenge,progress,encodeShare,decodeShare,colors} from './challenges.js';
 import {createRobotView} from './view3d.js';
+import {PlaybackClock,gridSelection} from './feedback.js';
+import {RobotAudio} from './audio.js';
+const audio=new RobotAudio(),playback=new PlaybackClock();
+let selectedPoint=null;
 const $=id=>document.getElementById(id);
 const fallback='// Write your robot program here.\n// Read the API reference for available commands.\nawait robot.release();\nawait robot.home();';
 let hasLoaded=false,lastCustom=null;
@@ -27,6 +31,19 @@ function prepare(){if(runner.status==='paused'&&runner.commands.length)return tr
  try{const commands=compile(editor.getValue());runner.load(commands);previousStatus='';solvedReported=false;logLength=-1;return true;}catch(error){runner.stop();runner.status='error';runner.error={message:error.message,line:error.line??1};previousStatus='';renderUI();return false;}}
 function runProgram(){if(runner.status==='running')return;if(prepare()){runner.run();renderUI();}}
 $('run').onclick=runProgram;
+$('playbackSpeed').onchange=e=>{playback.speed=Number(e.target.value);};
+$('soundToggle').onclick=async()=>{const enabled=await audio.toggle();$('soundToggle').textContent=enabled?'Sound on':'Sound off';$('soundToggle').setAttribute('aria-pressed',String(enabled));if(enabled)audio.cue('release');else toast('Sound muted or unavailable in this browser.');};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)audio.motion(false);});
+let pointerStart=null;
+$('scene').addEventListener('pointerdown',e=>{pointerStart=e.button===0?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
+$('scene').addEventListener('pointercancel',()=>{pointerStart=null;});
+$('scene').addEventListener('pointerup',e=>{
+ const start=pointerStart;pointerStart=null;if(!view||start?.id!==e.pointerId)return;
+ const point=gridSelection(start,{x:e.clientX,y:e.clientY},view.pick(e.clientX,e.clientY));if(!point)return;
+ selectedPoint=point;$('coordinateReadout').textContent=`X ${point.x} · Y ${point.y} mm${point.valid?'':' · outside reach'}`;
+ $('insertPoint').disabled=!point.valid;
+});
+$('insertPoint').onclick=()=>{if(selectedPoint?.valid)editor.insert(`await robot.moveTo(${selectedPoint.x}, ${selectedPoint.y}, 100);`);};
 $('pause').onclick=()=>{runner.pause();renderUI();};
 $('step').onclick=()=>{if(prepare()){runner.step();renderUI();}};
 $('stop').onclick=()=>{runner.stop();addLog('Stopped. Remaining commands cancelled; world preserved.');renderUI();};
@@ -41,7 +58,7 @@ function renderUI(){
  const completed=progress(current,sim.objects,sim.heldId),count=completed.filter(Boolean).length;
  if(runner.status!==previousStatus){if(runner.status==='error')addLog('Line '+runner.error.line+': '+runner.error.message,'error');if(runner.status==='finished')addLog('Program finished · '+count+'/'+completed.length+' targets delivered.');previousStatus=runner.status;}
  const solved=completed.every(Boolean);$('success').hidden=!solved;
- if(solved&&!solvedReported){solvedReported=true;addLog('Challenge complete! Every block is released and settled in its zone.','success');}
+ if(solved&&!solvedReported){solvedReported=true;audio.cue('complete');addLog('Challenge complete! Every block is released and settled in its zone.','success');}
  $('successDetail').textContent=runner.index+' commands · '+runner.elapsed.toFixed(1)+'s simulation time';
  $('missionProgress').textContent=count+' / '+completed.length+' delivered';
  document.querySelectorAll('.goal-row').forEach((row,i)=>{row.classList.toggle('done',completed[i]);row.querySelector('.goal-check').textContent=completed[i]?'✓':'○';});
@@ -68,9 +85,10 @@ function importHash(){if(!location.hash.startsWith('#play='))return false;try{co
 window.addEventListener('hashchange',importHash);
 loadChallenge(current);importHash();
 new ResizeObserver(()=>view?.resize()).observe($('scene'));
-let previousTime=0,accumulator=0,uiClock=0;
-function frame(now){const dt=Math.min((now-previousTime)/1000,.1)||0;previousTime=now;accumulator+=dt;uiClock+=dt;while(accumulator>=1/60){runner.tick(1/60);accumulator-=1/60;}
+let previousTime=0,uiClock=0;
+function frame(now){const dt=Math.min((now-previousTime)/1000,.1)||0;previousTime=now;uiClock+=dt;playback.advance(dt,step=>{const closed=sim.closed,held=sim.heldId,status=runner.status;runner.tick(step);if(!closed&&sim.closed)audio.cue(sim.heldId?'grip':'miss');if((closed||held)&&!sim.closed)audio.cue('release');if(status==='running'&&runner.status==='error'&&!sim.closed)audio.cue('miss');});
+ audio.motion(runner.status==='running'&&(Math.abs(sim.state.shoulder-sim.goal.shoulder)>.01||Math.abs(sim.state.elbow-sim.goal.elbow)>.01||Math.abs(sim.state.height-sim.goal.height)>.01));
  const done=progress(current,sim.objects,sim.heldId);
- view?.update(sim.state,null,sim.trail,{trail:true,envelope:true,objects:sim.objects,heldId:sim.heldId,closed:sim.closed,goals:current.goals,progress:done});
+ view?.update(sim.state,selectedPoint,sim.trail,{trail:true,envelope:true,objects:sim.objects,heldId:sim.heldId,closed:sim.closed,goals:current.goals,progress:done});
  if(uiClock>.08){renderUI();uiClock=0;}requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
