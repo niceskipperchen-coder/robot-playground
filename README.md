@@ -12,7 +12,7 @@ A browser-based programming environment for a three-axis SCARA-style robot. It c
 
 1. Open the playground and press **Run** to deliver the blue block.
 2. Use **Pause**, **Step**, and the highlighted source line to follow execution.
-3. Try **Sort the colors** or **Precision landing**, or create your own challenge.
+3. Work through precision deliveries, **Your first stack**, **Three-block tower**, and **Unstack & rebuild**, or create your own challenge.
 4. Press **Share** to send the layout and, optionally, your program to someone else.
 
 Shared programs always open idle. Nothing is executed until the visitor presses Run or Step.
@@ -26,7 +26,7 @@ Shared programs always open idle. Nothing is executed until the visitor presses 
 - Optional synthesized motor, gripper, missed-grasp, and completion sounds; muted by default.
 - Execution highlighting, line-specific errors, and a live console.
 - Orbit, pan, and zoom around the robot; perspective, top, and side presets.
-- Three built-in challenges with tested solutions, live delivery progress, and per-block goal matching.
+- Seven built-in challenges with tested solutions, live delivery progress, and per-block goal matching.
 - Custom challenge builder for one to three blocks, with reach and layout validation.
 - Versioned share links containing the challenge and optional source in the URL fragment. No server, accounts, leaderboard, or analytics.
 - Responsive layout and keyboard-accessible editor, execution controls, camera presets, and dialogs.
@@ -63,7 +63,7 @@ await robot.liftTo(100);
 
 ## Challenge rules
 
-Each required block must be inside its own matching goal, released, resting on the floor, and no longer falling. Carrying a block over a target does not count. A program can finish without solving the challenge; completion is reported separately.
+Each required block must be inside its own matching goal, released, at the correct target height, and fully settled. Carrying a block over a target does not count. A program can finish without solving the challenge; completion is reported separately.
 
 Custom layouts support A, B, and C blocks. Their centers and target centers must be 55–295 mm from the base. Start blocks cannot overlap, nor can target zones. Goal radius is 8–35 mm. Share payloads are schema-validated and limited to 16 KB decoded UTF-8; oversized or invalid links leave a usable default challenge.
 
@@ -95,7 +95,8 @@ dist/challenges.js  Built-ins, validation, progress, share-link encoding
 dist/view3d.js      Robot geometry, goals, camera controls, lighting
 dist/kinematics.js  Forward/inverse 2R kinematics
 dist/motion.js      Speed-limited joint stepping
-dist/manipulation.js  Grasp attachment, gravity, and floor contact
+dist/manipulation.js  Grasp alignment and access checks
+dist/physics.js       cannon-es rigid-body world, collisions and sleeping
 dist/app.js         UI coordination, drafts, builder, and sharing
 ```
 
@@ -105,9 +106,9 @@ Tests cover kinematics, grasp and floor behavior, command grammar and limits, li
 
 The mechanism has two revolute axes and one prismatic tool axis; gripper opening is a separate action. Links are 180 and 140 mm. The model uses 90°/s angular limits and a 65 mm/s vertical limit without acceleration modeling. Rendering runs independently of the 60 Hz simulation.
 
-Cubes are 24 mm. Grasping requires alignment within 8 mm horizontally and 6 mm vertically. Held cubes follow the tool through a simplified attachment constraint. Released cubes experience 9810 mm/s² gravity and inelastic floor contact. Pause and Stop freeze the world; after a program finishes, released cubes can continue settling.
+Cubes are 24 mm. Grasping requires alignment within 8 mm horizontally and 6 mm vertically. Held cubes follow the tool through a simplified attachment constraint. Released cubes use cannon-es rigid-body dynamics: 9810 mm/s² gravity, friction, collision contacts, rotation and sleeping. Physics uses metres internally, with eight solver substeps per fixed simulation tick. Towers have block centers at Z=12, 36 and 60 mm. Off-center placement can topple a stack. Covered blocks cannot be grasped through the block above them. Pause and Stop freeze the world; after a program finishes, released cubes can continue settling.
 
-There is no friction, contact-force solver, robot collision checking, stacking, motor torque model, or independent wrist rotation. This is an educational programming simulation, not a physical robot controller.
+The robot arm and gripper fingers have no collision bodies, and there is no motor torque model or independent wrist rotation. Grasped cubes follow a kinematic attachment; block-to-block and block-to-floor contact is physical, while pickup alignment is simplified. This is an educational programming simulation, not a physical robot controller.
 
 ## References
 
@@ -115,4 +116,4 @@ Created for Skipper Chen's engineering learning portfolio. Experiments, design c
 
 The renderer and core robot model extend the [original simulator](https://github.com/niceskipperchen-coder/robotic-arm-simulator). [Robotics Toolbox for Python](https://github.com/petercorke/robotics-toolbox-python) and [Mithi's Hexapod](https://github.com/mithi/hexapod) informed the earlier project's presentation, not its source implementation.
 
-[Three.js / OrbitControls](https://threejs.org/) and [CodeMirror](https://codemirror.net/) are third-party components. Their licenses are included under `dist/vendor/` and `THIRD_PARTY_NOTICES.txt`.
+[cannon-es](https://github.com/pmndrs/cannon-es), [Three.js / OrbitControls](https://threejs.org/) and [CodeMirror](https://codemirror.net/) are third-party components. Their licenses are included under `dist/vendor/` and `THIRD_PARTY_NOTICES.txt`.

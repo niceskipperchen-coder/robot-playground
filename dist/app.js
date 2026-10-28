@@ -23,9 +23,9 @@ function addLog(text,kind='info'){runner.logs.push({line:0,text,kind});logLength
 function onEdit(){if(runner.status==='running'||runner.status==='paused'){runner.stop();addLog('Program edited. The next run starts from a fresh world.');}runner.status='idle';runner.error=null;lastLine=-1;editor.highlight();saveDraft();solvedReported=false;clearTimeout(parseTimer);parseTimer=setTimeout(updateCommandCount,150);}
 function updateCommandCount(){try{$('commandCount').textContent=compile(editor.getValue()).length+' commands';}catch{$('commandCount').textContent='Check syntax';}}
 function freshRunner(){runner.stop();sim=new Simulation(current);runner=new Runner(sim);previousStatus='';lastLine=-1;logLength=-1;solvedReported=false;editor.highlight();}
-function loadChallenge(challenge,source=null,fromLink=false){saveDraft();current=validateChallenge(challenge);freshRunner();const known=builtin(current);editor.setValue(source??readDraft(current)??known?.starter??fallback);$('missionTitle').textContent=current.title;$('missionLevel').textContent=known?.level??'CUSTOM / YOUR CHALLENGE';$('missionDescription').textContent=known?.description??'Deliver each block to its matching zone. Release it on the floor inside the target radius.';$('loadSolution').disabled=!known;$('challengeSelect').value=known?.id??'custom';
+function loadChallenge(challenge,source=null,fromLink=false){saveDraft();current=validateChallenge(challenge);freshRunner();const known=builtin(current);editor.setValue(source??readDraft(current)??known?.starter??fallback);$('missionTitle').textContent=current.title;$('missionLevel').textContent=known?.level??'CUSTOM / YOUR CHALLENGE';$('missionDescription').textContent=known?.description??'Deliver each block to its matching zone. Release each block at the target height and wait for it to settle.';$('loadSolution').disabled=!known;$('challengeSelect').value=known?.id??'custom';
  if(!known){lastCustom=current;let custom=$('challengeSelect').querySelector('option[value="custom"]');if(!custom){custom=document.createElement('option');custom.value='custom';$('challengeSelect').append(custom);}custom.textContent='CUSTOM / '+current.title;$('challengeSelect').value='custom';}
- $('goalRows').replaceChildren();for(const g of current.goals){const row=document.createElement('div');row.className='goal-row';row.dataset.block=g.id;const block=document.createElement('span');block.className='block-dot';block.style.setProperty('--block-color','#'+colors[g.id].toString(16).padStart(6,'0'));block.textContent=g.id;const text=document.createElement('span');text.textContent='('+g.x+', '+g.y+') ±'+g.radius+' mm';const check=document.createElement('span');check.className='goal-check';check.textContent='○';row.append(block,text,check);$('goalRows').append(row);}
+ $('goalRows').replaceChildren();for(const g of current.goals){const row=document.createElement('div');row.className='goal-row';row.dataset.block=g.id;const block=document.createElement('span');block.className='block-dot';block.style.setProperty('--block-color','#'+colors[g.id].toString(16).padStart(6,'0'));block.textContent=g.id;const text=document.createElement('span');text.textContent='('+g.x+', '+g.y+') · Z '+(g.z??12)+' ±'+g.radius+' mm XY';const check=document.createElement('span');check.className='goal-check';check.textContent='○';row.append(block,text,check);$('goalRows').append(row);}
  hasLoaded=true;updateCommandCount();addLog(fromLink?'Shared challenge loaded. Press Run when you are ready.':'World ready. Program commands execute in order.');saveDraft();renderUI();}
 function prepare(){if(runner.status==='paused'&&runner.commands.length)return true;
  try{const commands=compile(editor.getValue());runner.load(commands);previousStatus='';solvedReported=false;logLength=-1;return true;}catch(error){runner.stop();runner.status='error';runner.error={message:error.message,line:error.line??1};previousStatus='';renderUI();return false;}}
@@ -39,8 +39,8 @@ $('scene').addEventListener('pointerdown',e=>{pointerStart=e.button===0?{x:e.cli
 $('scene').addEventListener('pointercancel',()=>{pointerStart=null;});
 $('scene').addEventListener('pointerup',e=>{
  const start=pointerStart;pointerStart=null;if(!view||start?.id!==e.pointerId)return;
- const point=gridSelection(start,{x:e.clientX,y:e.clientY},view.pick(e.clientX,e.clientY));if(!point)return;
- selectedPoint=point;$('coordinateReadout').textContent=`X ${point.x} · Y ${point.y} mm${point.valid?'':' · outside reach'}`;
+ const hit=view.pick(e.clientX,e.clientY);const point=gridSelection(start,{x:e.clientX,y:e.clientY},hit);if(!point)return;
+ selectedPoint=point;$('coordinateReadout').textContent=`X ${point.x} · Y ${point.y}${hit?.objectId?' · Z '+hit.z.toFixed(1):''} mm${point.valid?'':' · outside reach'}`;
  $('insertPoint').disabled=!point.valid;
 });
 $('insertPoint').onclick=()=>{if(selectedPoint?.valid)editor.insert(`await robot.moveTo(${selectedPoint.x}, ${selectedPoint.y}, 100);`);};
@@ -58,7 +58,7 @@ function renderUI(){
  const completed=progress(current,sim.objects,sim.heldId),count=completed.filter(Boolean).length;
  if(runner.status!==previousStatus){if(runner.status==='error')addLog('Line '+runner.error.line+': '+runner.error.message,'error');if(runner.status==='finished')addLog('Program finished · '+count+'/'+completed.length+' targets delivered.');previousStatus=runner.status;}
  const solved=completed.every(Boolean);$('success').hidden=!solved;
- if(solved&&!solvedReported){solvedReported=true;audio.cue('complete');addLog('Challenge complete! Every block is released and settled in its zone.','success');}
+ if(solved&&!solvedReported){solvedReported=true;audio.cue('complete');addLog('Challenge complete! Every block is released and settled at its target height.','success');}
  $('successDetail').textContent=runner.index+' commands · '+runner.elapsed.toFixed(1)+'s simulation time';
  $('missionProgress').textContent=count+' / '+completed.length+' delivered';
  document.querySelectorAll('.goal-row').forEach((row,i)=>{row.classList.toggle('done',completed[i]);row.querySelector('.goal-check').textContent=completed[i]?'✓':'○';});

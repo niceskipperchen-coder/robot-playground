@@ -95,6 +95,7 @@ export function createRobotView(canvas) {
   const toolDot=mesh(new THREE.SphereGeometry(2.5,12,12),new THREE.MeshBasicMaterial({color:0xf1dbaa}),scene);
   const tcpLabel=label('TCP');tcpLabel.scale.set(40,10,1);scene.add(tcpLabel);
   const objectMeshes=new Map();
+  const robotToWorld=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2),worldToRobot=robotToWorld.clone().invert(),blockRotation=new THREE.Quaternion();
   const zones=new THREE.Group();scene.add(zones);let zoneKey='',zoneEntries=[];
   function updateZones(goals,done){
     const key=JSON.stringify(goals);
@@ -102,9 +103,10 @@ export function createRobotView(canvas) {
       for(const goal of goals){
         const color={A:0x71b8de,B:0xe8937e,C:0xa1bf7c}[goal.id];
         const material=new THREE.MeshStandardMaterial({color,transparent:true,opacity:.22,roughness:.85});
-        const disc=mesh(new THREE.CylinderGeometry(goal.radius,goal.radius,.8,64),material,zones,goal.x,.5,-goal.y);disc.castShadow=false;
-        const ring=mesh(new THREE.TorusGeometry(goal.radius,.7,6,64),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.75}),zones,goal.x,1,-goal.y);ring.rotation.x=-Math.PI/2;
-        const text=label(goal.id+' / TARGET');text.scale.set(62,15,1);text.position.set(goal.x,4,-goal.y+goal.radius+11);zones.add(text);zoneEntries.push({disc,ring});
+        const disc=mesh(new THREE.CylinderGeometry(goal.radius,goal.radius,.8,64),material,zones,goal.x,(goal.z??12)-11.5,-goal.y);disc.castShadow=false;
+        const ring=mesh(new THREE.TorusGeometry(goal.radius,.7,6,64),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.75}),zones,goal.x,(goal.z??12)-11,-goal.y);ring.rotation.x=-Math.PI/2;
+        const text=label(goal.id+' / Z '+(goal.z??12));text.scale.set(62,15,1);text.position.set(goal.x,(goal.z??12)+3,-goal.y+goal.radius+11);
+        if(goal.z>12){const ghost=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(24,24,24)),new THREE.LineBasicMaterial({color,transparent:true,opacity:.4}));ghost.position.set(goal.x,goal.z,-goal.y);zones.add(ghost);}zones.add(text);zoneEntries.push({disc,ring});
       }
     }
     zoneEntries.forEach((entry,i)=>{entry.disc.material.opacity=done[i] ? .45 : .22;entry.disc.material.emissive.set(done[i]?0x263e20:0x000000);});
@@ -114,7 +116,7 @@ export function createRobotView(canvas) {
     for(const object of objects){
       let entry=objectMeshes.get(object.id);
       if(!entry){const material=new THREE.MeshStandardMaterial({color:object.color,metalness:.15,roughness:.45});const block=box(scene,object.size,object.size,object.size,0,0,0,material);block.userData.objectId=object.id;const text=label(object.id);text.scale.set(25,10,1);scene.add(text);entry={block,text};objectMeshes.set(object.id,entry);}
-      entry.block.visible=true;entry.text.visible=true;const p=worldPoint(object.x,object.y,object.z);entry.block.position.set(p.x,p.y,p.z);entry.text.position.set(p.x,p.y+24,p.z);
+      entry.block.visible=true;entry.text.visible=true;const p=worldPoint(object.x,object.y,object.z);entry.block.position.set(p.x,p.y,p.z);if(object.quaternion){const q=object.quaternion;blockRotation.set(q.x,q.y,q.z,q.w);entry.block.quaternion.copy(robotToWorld).multiply(blockRotation).multiply(worldToRobot);}else entry.block.quaternion.identity();entry.text.position.set(p.x,p.y+24,p.z);
       entry.block.material.emissive.set(object.id===heldId?0x374d24:0x000000);
     }
   }
@@ -123,7 +125,7 @@ export function createRobotView(canvas) {
     const rect=canvas.getBoundingClientRect(),pointer=new THREE.Vector2((clientX-rect.left)/rect.width*2-1,-(clientY-rect.top)/rect.height*2+1);
     raycaster.setFromCamera(pointer,camera);
     const hit=raycaster.intersectObjects([...objectMeshes.values()].filter(entry=>entry.block.visible).map(entry=>entry.block),false)[0];
-    if(hit){const p=hit.object.position;return {x:p.x,y:-p.z,objectId:hit.object.userData.objectId};}
+    if(hit){const p=hit.object.position;return {x:p.x,y:-p.z,z:p.y,objectId:hit.object.userData.objectId};}
     const point=raycaster.ray.intersectPlane(plane,new THREE.Vector3());return point?{x:point.x,y:-point.z}:null;
   }
   let fitDistance=1;
